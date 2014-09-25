@@ -75,7 +75,7 @@ func NewUnixClient(_net string, laddr, raddr *net.UnixAddr, log Logger) (*Client
 
 // NewCmdClient creates a new Client that is linked via stdin/stdout to the
 // supplied exec.Cmd, which is assumed to launch Neovim. The Neovim flag
-// --embedded-mode is added if it is missing, and the exec.Cmd is started
+// --embed is added if it is missing, and the exec.Cmd is started
 // as part of creating the client. Calling Close() will close stdin on the
 // embedded Neovim instance, thereby ending the process
 func NewCmdClient(c *exec.Cmd, log Logger) (*Client, error) {
@@ -89,16 +89,16 @@ func NewCmdClient(c *exec.Cmd, log Logger) (*Client, error) {
 	}
 	wrap := &StdWrapper{Stdin: stdin, Stdout: stdout}
 
-	// ensure that we have --embedded-mode
+	// ensure that we have --embed
 	found := false
 	for i := range c.Args {
-		if c.Args[i] == "--embedded-mode" {
+		if c.Args[i] == "--embed" {
 			found = true
 		}
 	}
 
 	if !found {
-		c.Args = append(c.Args, "--embedded-mode")
+		c.Args = append(c.Args, "--embed")
 	}
 
 	err = c.Start()
@@ -124,6 +124,7 @@ func NewClient(c io.ReadWriteCloser, log Logger) (*Client, error) {
 	res.provMap = newSyncProviderMap()
 	res.dec = msgpack.NewDecoder(c)
 	res.enc = msgpack.NewEncoder(c)
+	res.log = log
 	res.subChan = make(chan subWrapper)
 	res.KillChannel = make(chan struct{})
 
@@ -287,15 +288,17 @@ func (c *Client) doListen() error {
 				c.log.Fatalf("Could not decode request id: %v", err)
 			}
 
-			// do we have an error?
 			re, err := dec.DecodeInterface()
 			if err == io.EOF {
 				break
 			} else if err != nil {
 				c.log.Fatalf("Could not decode response error: %v", err)
 			}
+			// fmt.Printf("Req ID: %v, re: %v\n", reqID, re)
 			if re != nil {
-				c.log.Fatalf("Got a response error for request %v: %v", reqID, re)
+				re := re.([]interface{})
+				// b := re[1].([]byte)
+				c.log.Fatalf("Got a response error for request %v: %v", reqID, re[1])
 			}
 
 			// no, carry on
@@ -365,14 +368,14 @@ func (c *Client) doSubscriptionManager(se chan *SubscriptionEvent) {
 				select {
 				case t := <-subTasks:
 					if t.task == _Sub {
-						err := c.subscribe(t.sub.Topic)
+						err := c.subscribe([]byte(t.sub.Topic))
 						if err != nil {
 							t.errChan <- errgo.NoteMask(err, "Could not subscribe")
 						} else {
 							close(t.errChan)
 						}
 					} else if t.task == _Unsub {
-						err := c.unsubscribe(t.sub.Topic)
+						err := c.unsubscribe([]byte(t.sub.Topic))
 						if err != nil {
 							t.errChan <- errgo.NoteMask(err, "Could not unsubscribe")
 						} else {
@@ -522,7 +525,7 @@ func (c *Client) makeCall(reqMethID neovimMethodID, e encoder, d decoder) (chan 
 		return nil, errgo.NoteMask(err, "Could not encode request ID")
 	}
 
-	err = enc.EncodeString(string(reqMethID))
+	err = enc.EncodeBytes([]byte(reqMethID))
 	if err != nil {
 		return nil, errgo.NoteMask(err, "Could not encode request method ID")
 	}

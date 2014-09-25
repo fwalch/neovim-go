@@ -24,13 +24,15 @@ import (
 
 // An API represents the API as advertised by Neovim
 type API struct {
-	Classes   []APIClass
-	Functions []APIFunction
+	Types      []APIClass
+	Functions  []APIFunction
+	ErrorTypes []APIClass
 }
 
 // An APIClass represents a class as defined as part of the API
 type APIClass struct {
 	Name string
+	Id   int
 }
 
 // An APIFunction represents a class as defined as part of the API
@@ -107,7 +109,7 @@ func main() {
 }
 
 func getAPI() (*API, error) {
-	output, err := exec.Command(os.Getenv("NEOVIM_BIN"), "--api-msgpack-metadata").CombinedOutput()
+	output, err := exec.Command(os.Getenv("NEOVIM_BIN"), "--api-info").CombinedOutput()
 	if err != nil {
 		log.Fatalf("Could not get current API dump: %v", errgo.Details(err))
 	}
@@ -124,24 +126,31 @@ func getAPI() (*API, error) {
 	resp := &API{}
 
 	for i := 0; i < ml; i++ {
-		k, err := ad.DecodeString()
+		k, err := ad.DecodeBytes()
 		if err != nil {
 			return nil, errgo.NoteMask(err, "Could not decode key of top level api map")
 		}
 
-		switch k {
-		case "classes":
+		switch string(k) {
+		case "types":
 			classes, err := decodeAPIClassSlice(ad)
 			if err != nil {
 				return nil, errgo.NoteMask(err, "Could not decode class slice")
 			}
-			resp.Classes = classes
+			resp.Types = classes
 		case "functions":
 			functions, err := decodeAPIFunctionSlice(ad)
 			if err != nil {
 				return nil, errgo.NoteMask(err, "Could not decode function slice")
 			}
 			resp.Functions = functions
+		case "features":
+		case "error_types":
+			ets, err := decodeAPIClassSlice(ad)
+			if err != nil {
+				return nil, errgo.NoteMask(err, "Could not decode error_type slice")
+			}
+			resp.ErrorTypes = ets
 		}
 	}
 
@@ -150,17 +159,41 @@ func getAPI() (*API, error) {
 
 func decodeAPIClass(d *msgpack.Decoder) (APIClass, error) {
 	resp := APIClass{}
-	cn, err := d.DecodeString()
+	cn, err := d.DecodeBytes()
 	if err != nil {
 		return resp, errgo.NoteMask(err, "Could not decode class name")
 	}
 
-	resp.Name = cn
+	ml, err := d.DecodeMapLen()
+	if err != nil {
+		return resp, errgo.NoteMask(err, "Could not decode map length")
+	}
+
+	if ml != 1 {
+		return resp, errgo.Newf("Expected map length of 1; got %v", ml)
+	}
+
+	mk, err := d.DecodeBytes()
+	if err != nil {
+		return resp, errgo.NoteMask(err, "Could not decode ID key")
+	}
+
+	if string(mk) != "id" {
+		return resp, errgo.Newf("Expected single key to be 'id'; got %v", mk)
+	}
+
+	id, err := d.DecodeInt()
+	if err != nil {
+		return resp, errgo.NoteMask(err, "Could not decode ID value")
+	}
+
+	resp.Name = string(cn)
+	resp.Id = id
 	return resp, nil
 }
 
 func decodeAPIClassSlice(d *msgpack.Decoder) ([]APIClass, error) {
-	sl, err := d.DecodeSliceLen()
+	sl, err := d.DecodeMapLen()
 	if err != nil {
 		return nil, errgo.NoteMask(err, "Could not decode slice length")
 	}
@@ -409,6 +442,17 @@ func getType(s string) _type {
 }
 
 func genMethodTemplates(fs []APIFunction) []methodTemplate {
+	// TODO make this cleaner - remove vim_get_api_info
+	fs_copy := make([]APIFunction, len(fs)-1)
+	i := 0
+	for _, f := range fs {
+		if f.Name != "vim_get_api_info" {
+			fs_copy[i] = f
+			i++
+		}
+	}
+	fs = fs_copy
+
 	res := make([]methodTemplate, len(fs))
 
 	for i, f := range fs {
@@ -513,7 +557,7 @@ func genAPI(a *API) {
 	for _, k := range knowClasses {
 		comp[k]++
 	}
-	for _, k := range a.Classes {
+	for _, k := range a.Types {
 		if comp[k.Name] != 1 {
 			log.Fatalf("We got an unexpected class: %v\n", k.Name)
 		}
@@ -548,7 +592,7 @@ func genAPI(a *API) {
 
 	api := api{}
 	api.Methods = genMethodTemplates(funcsOfInterest)
-	api.Types = genTypeTemplates(a.Classes)
+	api.Types = genTypeTemplates(a.Types)
 
 	err = t.Execute(os.Stdout, api)
 	if err != nil {
@@ -701,14 +745,14 @@ func {{template "meth_rec" .}} {{ .Name }}({{template "meth_params" .Params}}) {
 
 var typeMap = map[string]_type{
 	"String": {
-		name:      "string",
-		enc:       "EncodeString",
-		dec:       "DecodeString",
+		name:      "[]byte",
+		enc:       "EncodeBytes",
+		dec:       "DecodeBytes",
 		primitive: true,
 		genHelper: true,
 	},
-	"StringArray": {
-		name: "[]string",
+	"ArrayOf(String)": {
+		name: "[][]byte",
 		enc:  "encodeStringSlice",
 		dec:  "decodeStringSlice",
 	},
@@ -718,11 +762,17 @@ var typeMap = map[string]_type{
 		dec:       "DecodeUint32",
 		primitive: true,
 	},
+	"ArrayOf(Integer, 2)": {
+		name: "[]int",
+		enc:  "encodeIntSlice",
+		dec:  "decodeIntSlice",
+	},
 	"Integer": {
 		name:      "int",
 		enc:       "EncodeInt",
 		dec:       "DecodeInt",
 		primitive: true,
+		genHelper: true,
 	},
 	"Boolean": {
 		name:      "bool",
@@ -742,7 +792,7 @@ var typeMap = map[string]_type{
 		dec:       "decodeBuffer",
 		genHelper: true,
 	},
-	"BufferArray": {
+	"ArrayOf(Buffer)": {
 		name: "[]Buffer",
 		enc:  "encodeBufferSlice",
 		dec:  "decodeBufferSlice",
@@ -753,7 +803,7 @@ var typeMap = map[string]_type{
 		dec:       "decodeWindow",
 		genHelper: true,
 	},
-	"WindowArray": {
+	"ArrayOf(Window)": {
 		name: "[]Window",
 		enc:  "encodeWindowSlice",
 		dec:  "decodeWindowSlice",
@@ -764,7 +814,7 @@ var typeMap = map[string]_type{
 		dec:       "decodeTabpage",
 		genHelper: true,
 	},
-	"TabpageArray": {
+	"ArrayOf(Tabpage)": {
 		name: "[]Tabpage",
 		enc:  "encodeTabpageSlice",
 		dec:  "decodeTabpageSlice",

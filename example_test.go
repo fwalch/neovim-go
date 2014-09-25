@@ -4,95 +4,85 @@
 
 package neovim_test
 
-import (
-	"fmt"
-	"log"
-	"os"
-	"os/exec"
+// func ExampleSubscription() {
+// 	cmd := exec.Command(os.Getenv("NEOVIM_BIN"), "-u", "/dev/null")
+// 	cmd.Dir = "/tmp"
 
-	"github.com/juju/errgo"
-	"github.com/myitcv/neovim"
-)
+// 	client, err := neovim.NewCmdClient(cmd, nil)
+// 	if err != nil {
+// 		log.Fatalf("Could not create new client: %v", errgo.Details(err))
+// 	}
+// 	client.PanicOnError = true
 
-func ExampleSubscription() {
-	cmd := exec.Command(os.Getenv("NEOVIM_BIN"), "-u", "/dev/null")
-	cmd.Dir = "/tmp"
+// 	topic := "topic1"
+// 	sub, err := client.Subscribe(topic)
+// 	if err != nil {
+// 		log.Fatalf("Could not subscribe to topic %v, with respChan %v and errChan %v: %v", sub.Topic, sub, errgo.Details(err))
+// 	}
 
-	client, err := neovim.NewCmdClient(cmd, nil)
-	if err != nil {
-		log.Fatalf("Could not create new client: %v", errgo.Details(err))
-	}
-	client.PanicOnError = true
+// 	unsubbed := make(chan struct{})
+// 	done := make(chan struct{})
+// 	received := make(chan struct{})
 
-	topic := "topic1"
-	sub, err := client.Subscribe(topic)
-	if err != nil {
-		log.Fatalf("Could not subscribe to topic %v, with respChan %v and errChan %v: %v", sub.Topic, sub, errgo.Details(err))
-	}
+// 	go func() {
+// 	ForLoop:
+// 		for {
+// 			select {
+// 			case e := <-sub.Events:
+// 				if e == nil {
+// 					break ForLoop
+// 				}
+// 				fmt.Printf("We got %v\n", e.Value)
+// 				received <- struct{}{}
+// 			}
+// 		}
+// 		done <- struct{}{}
+// 	}()
 
-	unsubbed := make(chan struct{})
-	done := make(chan struct{})
-	received := make(chan struct{})
+// 	command := fmt.Sprintf(`call send_event(0, "%v", 1)`, topic)
+// 	_ = client.Command([]byte(command))
 
-	go func() {
-	ForLoop:
-		for {
-			select {
-			case e := <-sub.Events:
-				if e == nil {
-					break ForLoop
-				}
-				fmt.Printf("We got %v\n", e.Value)
-				received <- struct{}{}
-			}
-		}
-		done <- struct{}{}
-	}()
+// 	<-received
 
-	command := fmt.Sprintf(`call send_event(0, "%v", 1)`, topic)
-	_ = client.Command(command)
+// 	go func() {
 
-	<-received
+// 		_ = client.Unsubscribe(sub)
+// 		unsubbed <- struct{}{}
+// 	}()
 
-	go func() {
+// 	<-done
 
-		_ = client.Unsubscribe(sub)
-		unsubbed <- struct{}{}
-	}()
+// 	<-unsubbed
 
-	<-done
+// 	_ = client.Close()
 
-	<-unsubbed
+// 	// Output:
+// 	// We got [1]
+// }
 
-	_ = client.Close()
+// func ExampleClient_GetCurrentBuffer() {
+// 	cmd := exec.Command(os.Getenv("NEOVIM_BIN"), "-u", "/dev/null")
+// 	cmd.Dir = "/tmp"
 
-	// Output:
-	// We got [1]
-}
+// 	client, err := neovim.NewCmdClient(cmd, nil)
+// 	if err != nil {
+// 		log.Fatalf("Could not create new client: %v", errgo.Details(err))
+// 	}
+// 	b, err := client.GetCurrentBuffer()
+// 	if err != nil {
+// 		log.Fatalf("Could not get current buffer: %v", errgo.Details(err))
+// 	}
+// 	n, err := b.GetName()
+// 	if err != nil {
+// 		log.Fatalf("Could not get name for buffer %v: %v", b, errgo.Details(err))
+// 	}
+// 	fmt.Printf("Current buffer is: %v %v\n", b.ID, n)
 
-func ExampleClient_GetCurrentBuffer() {
-	cmd := exec.Command(os.Getenv("NEOVIM_BIN"), "-u", "/dev/null")
-	cmd.Dir = "/tmp"
+// 	err = client.Close()
+// 	if err != nil {
+// 		log.Fatalf("Could not close client: %v\n", err)
+// 	}
 
-	client, err := neovim.NewCmdClient(cmd, nil)
-	if err != nil {
-		log.Fatalf("Could not create new client: %v", errgo.Details(err))
-	}
-	b, err := client.GetCurrentBuffer()
-	if err != nil {
-		log.Fatalf("Could not get current buffer: %v", errgo.Details(err))
-	}
-	n, err := b.GetName()
-	if err != nil {
-		log.Fatalf("Could not get name for buffer %v: %v", b, errgo.Details(err))
-	}
-	fmt.Printf("Current buffer is: %v %v\n", b.ID, n)
-
-	err = client.Close()
-	if err != nil {
-		log.Fatalf("Could not close client: %v\n", err)
-	}
-
-	// Output:
-	// Current buffer is: 2
-}
+// 	// Output:
+// 	// Current buffer is: 2
+// }
