@@ -5,10 +5,13 @@
 package neovim_test
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
+	"sync/atomic"
 
 	"testing"
 
@@ -93,151 +96,152 @@ func (t *NeovimTest) TestClientGetCurrentBuffer(c *C) {
 // 	c.Assert(l, Equals, 1)
 // }
 
-// func (t *NeovimTest) TestBufferSetGetLine(c *C) {
-// 	b, _ := t.client.GetCurrentBuffer()
-// 	val := "This is line 1"
-// 	_ = b.SetLine(0, val)
-// 	l, _ := b.GetLine(0)
-// 	c.Assert(l, Equals, val)
-// 	_ = b.DelLine(0)
-// 	length, _ := b.GetLength()
-// 	c.Assert(length, Equals, 1)
-// }
+func (t *NeovimTest) TestBufferSetGetLine(c *C) {
+	b, _ := t.client.GetCurrentBuffer()
+	val := "This is line 1"
+	_ = b.SetLine(0, val)
+	l, _ := b.GetLine(0)
+	c.Assert(l, Equals, val)
+	_ = b.DelLine(0)
+	length, _ := b.GetLength()
+	c.Assert(length, Equals, 1)
+}
 
 func (t *NeovimTest) TestEval(c *C) {
-	res, _ := t.client.Eval([]byte(`4`))
+	res, _ := t.client.Eval(`4`)
 	resInt64 := res.(int64)
 	c.Assert(resInt64 > 0, Equals, true)
 }
 
-// func (t *NeovimTest) TestClientSubscribe(c *C) {
-// 	topic := "event1"
-// 	val := []int64{1, 2, 3}
+func (t *NeovimTest) TestClientSubscribe(c *C) {
+	topic := "event1"
+	val := []int64{1, 2, 3}
 
-// 	vals := make([]string, len(val))
-// 	for i := range val {
-// 		vals[i] = fmt.Sprintf("%v", val[i])
-// 	}
+	vals := make([]string, len(val))
+	for i := range val {
+		vals[i] = fmt.Sprintf("%v", val[i])
+	}
 
-// 	sub, _ := t.client.Subscribe(topic)
-// 	command := fmt.Sprintf(`call send_event(0, "%v", %v)`, topic, strings.Join(vals, ","))
-// 	_ = t.client.Command(command)
-// 	resp := <-sub.Events
-// 	c.Assert(len(val), Equals, len(resp.Value))
-// 	for i := range resp.Value {
-// 		c.Assert(resp.Value[i], Equals, val[i])
-// 	}
-// 	_ = t.client.Unsubscribe(sub)
-// 	_ = t.client.Command(command)
+	sub, _ := t.client.Subscribe(topic)
+	command := fmt.Sprintf(`call rpcnotify(0, "%v", %v)`, topic, strings.Join(vals, ","))
+	_ = t.client.Command(command)
+	resp := <-sub.Events
+	c.Assert(len(val), Equals, len(resp.Value))
+	for i := range resp.Value {
+		c.Assert(resp.Value[i], Equals, val[i])
+	}
+	_ = t.client.Unsubscribe(sub)
+	_ = t.client.Command(command)
 
-// 	// try and resubsubscribe; if there is an unhandled notification this will block
-// 	// forever and fail the tests
-// 	sub, _ = t.client.Subscribe(topic)
-// }
+	// try and resubsubscribe; if there is an unhandled notification this will block
+	// forever and fail the tests
+	sub, _ = t.client.Subscribe(topic)
+}
 
-// func (t *NeovimTest) TestGetSlice(c *C) {
-// 	cb, _ := t.client.GetCurrentBuffer()
-// 	lines, _ := cb.GetSlice(0, -1, true, true)
-// 	c.Assert(lines, NotNil)
-// }
+func (t *NeovimTest) TestGetSlice(c *C) {
+	// TODO need to make sure this actually tests the lines
+	cb, _ := t.client.GetCurrentBuffer()
+	lines, _ := cb.GetSlice(0, -1, true, true)
+	c.Assert(lines, NotNil)
+}
 
-// func (t *NeovimTest) TestNumberEval(c *C) {
-// 	i, _ := t.client.Eval("1")
-// 	c.Assert(i, Equals, int64(1))
-// }
+func (t *NeovimTest) TestNumberEval(c *C) {
+	i, _ := t.client.Eval("1")
+	c.Assert(i, Equals, int64(1))
+}
 
-// func (t *NeovimTest) TestArrayEval(c *C) {
-// 	_ = t.client.Command("let x=1 | let y=2")
-// 	_v, _ := t.client.Eval("[x,y]")
-// 	v := _v.([]interface{})
-// 	comp := []int64{1, 2}
-// 	c.Assert(len(v), Equals, len(comp))
-// 	for i := range v {
-// 		c.Assert(comp[i], Equals, v[i].(int64))
-// 	}
-// }
+func (t *NeovimTest) TestArrayEval(c *C) {
+	_ = t.client.Command("let x=1 | let y=2")
+	_v, _ := t.client.Eval("[x,y]")
+	v := _v.([]interface{})
+	comp := []int64{1, 2}
+	c.Assert(len(v), Equals, len(comp))
+	for i := range v {
+		c.Assert(comp[i], Equals, v[i].(int64))
+	}
+}
 
-// // func (t *NeovimTest) TestRegisterProvider(c *C) {
-// // 	_ = t.client.RegisterProvider("my_first_method", func(args []interface{}) ([]interface{}, error) {
-// // 		return nil, nil
-// // 	})
-// // 	_ = t.client.Command("scriptcall my_first_method")
-// // }
+func (t *NeovimTest) TestRegisterProvider(c *C) {
+	_ = t.client.RegisterProvider("my_first_method", func(args []interface{}) ([]interface{}, error) {
+		return nil, nil
+	})
+	_ = t.client.Command("scriptcall my_first_method")
+}
 
-// func (t *NeovimTest) BenchmarkCommandAndEval(c *C) {
-// 	for i := 0; i < c.N; i++ {
-// 		_ = t.client.Command(fmt.Sprintf("let x=%v", i))
-// 		v, _ := t.client.Eval("x")
-// 		switch v.(type) {
-// 		case int64:
-// 			c.Assert(v, Equals, int64(i))
-// 		case uint64:
-// 			c.Assert(v, Equals, uint64(i))
-// 		default:
-// 			panic("Unkown type")
-// 		}
-// 	}
-// }
+func (t *NeovimTest) BenchmarkCommandAndEval(c *C) {
+	for i := 0; i < c.N; i++ {
+		_ = t.client.Command(fmt.Sprintf("let x=%v", i))
+		v, _ := t.client.Eval("x")
+		switch v.(type) {
+		case int64:
+			c.Assert(v, Equals, int64(i))
+		case uint64:
+			c.Assert(v, Equals, uint64(i))
+		default:
+			panic("Unkown type")
+		}
+	}
+}
 
-// func (t *NeovimTest) BenchmarkMatchAddEmptyBuffer(c *C) {
-// 	for i := 0; i < c.N; i++ {
-// 		id, _ := t.client.Eval(fmt.Sprintf("matchadd('String', '\\%%%vl\\%%2c\\_.\\{8\\}')", i))
-// 		c.Assert(id, NotNil)
-// 	}
-// }
+func (t *NeovimTest) BenchmarkMatchAddEmptyBuffer(c *C) {
+	for i := 0; i < c.N; i++ {
+		id, _ := t.client.Eval(fmt.Sprintf("matchadd('String', '\\%%%vl\\%%2c\\_.\\{8\\}')", i))
+		c.Assert(id, NotNil)
+	}
+}
 
-// func (t *NeovimTest) BenchmarkGetBufferContents(c *C) {
-// 	// TODO this needs to first fill the buffer with suitable contents
-// 	cb, _ := t.client.GetCurrentBuffer()
-// 	c.ResetTimer()
-// 	for i := 0; i < c.N; i++ {
-// 		_, _ = cb.GetSlice(0, -1, true, true)
-// 	}
-// }
+func (t *NeovimTest) BenchmarkGetBufferContents(c *C) {
+	// TODO this needs to first fill the buffer with suitable contents
+	cb, _ := t.client.GetCurrentBuffer()
+	c.ResetTimer()
+	for i := 0; i < c.N; i++ {
+		_, _ = cb.GetSlice(0, -1, true, true)
+	}
+}
 
-// func (t *NeovimTest) TestMultiClientSubscribe(c *C) {
-// 	topic := "event1"
-// 	var subDone, unsubDone, doneDone sync.WaitGroup
-// 	var check int64
+func (t *NeovimTest) TestMultiClientSubscribe(c *C) {
+	topic := "event1"
+	var subDone, unsubDone, doneDone sync.WaitGroup
+	var check int64
 
-// 	number := 1000
+	number := 1000
 
-// 	for i := 1; i <= number; i++ {
-// 		subDone.Add(1)
-// 		if i%2 == 1 {
-// 			unsubDone.Add(1)
-// 		}
-// 		doneDone.Add(1)
-// 		go func(topic string, n int, check *int64) {
-// 			sub, _ := t.client.Subscribe(topic)
-// 			subDone.Done()
-// 			resp := <-sub.Events
-// 			val := resp.Value[0].(int64)
-// 			atomic.AddInt64(check, val)
-// 			if n%2 == 0 {
-// 				// listen again
-// 				resp := <-sub.Events
-// 				val := resp.Value[0].(int64)
-// 				atomic.AddInt64(check, val)
-// 			} else {
-// 				// unsubscribe
-// 				t.client.Unsubscribe(sub)
-// 				unsubDone.Done()
-// 			}
-// 			doneDone.Done()
-// 		}(topic, i, &check)
-// 	}
+	for i := 1; i <= number; i++ {
+		subDone.Add(1)
+		if i%2 == 1 {
+			unsubDone.Add(1)
+		}
+		doneDone.Add(1)
+		go func(topic string, n int, check *int64) {
+			sub, _ := t.client.Subscribe(topic)
+			subDone.Done()
+			resp := <-sub.Events
+			val := resp.Value[0].(int64)
+			atomic.AddInt64(check, val)
+			if n%2 == 0 {
+				// listen again
+				resp := <-sub.Events
+				val := resp.Value[0].(int64)
+				atomic.AddInt64(check, val)
+			} else {
+				// unsubscribe
+				t.client.Unsubscribe(sub)
+				unsubDone.Done()
+			}
+			doneDone.Done()
+		}(topic, i, &check)
+	}
 
-// 	subDone.Wait()
+	subDone.Wait()
 
-// 	command := fmt.Sprintf(`call send_event(0, "%v", 1)`, topic)
-// 	_ = t.client.Command(command)
+	command := fmt.Sprintf(`call rpcnotify(0, "%v", 1)`, topic)
+	_ = t.client.Command(command)
 
-// 	unsubDone.Wait()
+	unsubDone.Wait()
 
-// 	_ = t.client.Command(command)
+	_ = t.client.Command(command)
 
-// 	doneDone.Wait()
+	doneDone.Wait()
 
-// 	c.Assert(atomic.LoadInt64(&check), Equals, int64(number+number/2))
-// }
+	c.Assert(atomic.LoadInt64(&check), Equals, int64(number+number/2))
+}

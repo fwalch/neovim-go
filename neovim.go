@@ -265,8 +265,6 @@ func (c *Client) doListen() error {
 				c.log.Fatalf("Could not decode request method args: %v", err)
 			}
 
-			c.log.Printf("Got a request %v for method %v(%v)\n", reqID, reqMeth, reqArgs)
-
 			go func() {
 				i, err := prov(reqArgs)
 
@@ -275,9 +273,7 @@ func (c *Client) doListen() error {
 				enc := func() error {
 					return c.enc.Encode(i)
 				}
-				c.log.Printf("Sending a response to %v\n", reqID)
 				c.sendResponse(reqID, err, enc)
-				c.log.Printf("Response sent to %v\n", reqID)
 			}()
 		case 1:
 			// handle response
@@ -294,11 +290,15 @@ func (c *Client) doListen() error {
 			} else if err != nil {
 				c.log.Fatalf("Could not decode response error: %v", err)
 			}
-			// fmt.Printf("Req ID: %v, re: %v\n", reqID, re)
 			if re != nil {
 				re := re.([]interface{})
 				// b := re[1].([]byte)
-				c.log.Fatalf("Got a response error for request %v: %v", reqID, re[1])
+				errBytes := re[1].([]uint8)
+				errString := make([]byte, len(errBytes))
+				for i := range errBytes {
+					errString[i] = byte(errBytes[i])
+				}
+				c.log.Fatalf("Got a response error for request %v: %v", reqID, string(errString))
 			}
 
 			// no, carry on
@@ -368,14 +368,14 @@ func (c *Client) doSubscriptionManager(se chan *SubscriptionEvent) {
 				select {
 				case t := <-subTasks:
 					if t.task == _Sub {
-						err := c.subscribe([]byte(t.sub.Topic))
+						err := c.subscribe(t.sub.Topic)
 						if err != nil {
 							t.errChan <- errgo.NoteMask(err, "Could not subscribe")
 						} else {
 							close(t.errChan)
 						}
 					} else if t.task == _Unsub {
-						err := c.unsubscribe([]byte(t.sub.Topic))
+						err := c.unsubscribe(t.sub.Topic)
 						if err != nil {
 							t.errChan <- errgo.NoteMask(err, "Could not unsubscribe")
 						} else {

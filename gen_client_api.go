@@ -167,7 +167,13 @@ func (b *Buffer) GetLength() (int, error) {
 }
 
 // GetLine waiting for documentation from Neovim
-func (b *Buffer) GetLine(index int) ([]byte, error) {
+func (b *Buffer) GetLine(index int) (string, error) {
+	res, err := b.GetLineRaw(index)
+	return string(res), err
+}
+
+// GetLineRaw waiting for documentation from Neovim
+func (b *Buffer) GetLineRaw(index int) ([]byte, error) {
 	var retVal []byte
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(2)
@@ -212,7 +218,12 @@ func (b *Buffer) GetLine(index int) ([]byte, error) {
 }
 
 // GetMark waiting for documentation from Neovim
-func (b *Buffer) GetMark(name []byte) ([]int, error) {
+func (b *Buffer) GetMark(name string) ([]int, error) {
+	return b.GetMarkRaw([]byte(name))
+}
+
+// GetMarkRaw waiting for documentation from Neovim
+func (b *Buffer) GetMarkRaw(name []byte) ([]int, error) {
 	var retVal []int
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(2)
@@ -257,7 +268,13 @@ func (b *Buffer) GetMark(name []byte) ([]int, error) {
 }
 
 // GetName waiting for documentation from Neovim
-func (b *Buffer) GetName() ([]byte, error) {
+func (b *Buffer) GetName() (string, error) {
+	res, err := b.GetNameRaw()
+	return string(res), err
+}
+
+// GetNameRaw waiting for documentation from Neovim
+func (b *Buffer) GetNameRaw() ([]byte, error) {
 	var retVal []byte
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(1)
@@ -335,7 +352,12 @@ func (b *Buffer) GetNumber() (int, error) {
 }
 
 // GetOption waiting for documentation from Neovim
-func (b *Buffer) GetOption(name []byte) (interface{}, error) {
+func (b *Buffer) GetOption(name string) (interface{}, error) {
+	return b.GetOptionRaw([]byte(name))
+}
+
+// GetOptionRaw waiting for documentation from Neovim
+func (b *Buffer) GetOptionRaw(name []byte) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(2)
@@ -380,7 +402,23 @@ func (b *Buffer) GetOption(name []byte) (interface{}, error) {
 }
 
 // GetSlice waiting for documentation from Neovim
-func (b *Buffer) GetSlice(start int, end int, includeStart bool, includeEnd bool) ([][]byte, error) {
+func (b *Buffer) GetSlice(start int, end int, includeStart bool, includeEnd bool) ([]string, error) {
+	res, err := b.GetSliceRaw(start, end, includeStart, includeEnd)
+
+	if res != nil {
+		res_s := make([]string, len(res))
+		for i := range res {
+			res_s[i] = string(res[i])
+		}
+
+		return res_s, err
+	}
+
+	return nil, err
+}
+
+// GetSliceRaw waiting for documentation from Neovim
+func (b *Buffer) GetSliceRaw(start int, end int, includeStart bool, includeEnd bool) ([][]byte, error) {
 	var retVal [][]byte
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(5)
@@ -443,7 +481,12 @@ func (b *Buffer) GetSlice(start int, end int, includeStart bool, includeEnd bool
 }
 
 // GetVar waiting for documentation from Neovim
-func (b *Buffer) GetVar(name []byte) (interface{}, error) {
+func (b *Buffer) GetVar(name string) (interface{}, error) {
+	return b.GetVarRaw([]byte(name))
+}
+
+// GetVarRaw waiting for documentation from Neovim
+func (b *Buffer) GetVarRaw(name []byte) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(2)
@@ -488,7 +531,20 @@ func (b *Buffer) GetVar(name []byte) (interface{}, error) {
 }
 
 // Insert waiting for documentation from Neovim
-func (b *Buffer) Insert(lnum int, lines [][]byte) error {
+func (b *Buffer) Insert(lnum int, lines []string) error {
+	var lines_b [][]byte
+	if lines != nil {
+		lines_b := make([][]byte, len(lines))
+		for i := range lines {
+			lines_b[i] = []byte(lines[i])
+		}
+	}
+	return b.InsertRaw(lnum, lines_b)
+
+}
+
+// InsertRaw waiting for documentation from Neovim
+func (b *Buffer) InsertRaw(lnum int, lines [][]byte) error {
 
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(3)
@@ -576,8 +632,13 @@ func (b *Buffer) IsValid() (bool, error) {
 
 }
 
-// SetLine waiting for documentation from Neovim
-func (b *Buffer) SetLine(index int, line []byte) error {
+// SetLineRaw waiting for documentation from Neovim
+func (b *Buffer) SetLine(index int, line string) error {
+	return b.SetLineRaw(index, []byte(line))
+}
+
+// SetLineRaw waiting for documentation from Neovim
+func (b *Buffer) SetLineRaw(index int, line []byte) error {
 
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(3)
@@ -627,7 +688,12 @@ func (b *Buffer) SetLine(index int, line []byte) error {
 }
 
 // SetName waiting for documentation from Neovim
-func (b *Buffer) SetName(name []byte) error {
+func (b *Buffer) SetName(name string) error {
+	return b.SetNameRaw([]byte(name))
+}
+
+// SetNameRaw waiting for documentation from Neovim
+func (b *Buffer) SetNameRaw(name []byte) error {
 
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(2)
@@ -671,7 +737,12 @@ func (b *Buffer) SetName(name []byte) error {
 }
 
 // SetOption waiting for documentation from Neovim
-func (b *Buffer) SetOption(name []byte, value interface{}) error {
+func (b *Buffer) SetOption(name string, value interface{}) error {
+	return b.SetOptionRaw([]byte(name), value)
+}
+
+// SetOptionRaw waiting for documentation from Neovim
+func (b *Buffer) SetOptionRaw(name []byte, value interface{}) error {
 
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(3)
@@ -721,7 +792,19 @@ func (b *Buffer) SetOption(name []byte, value interface{}) error {
 }
 
 // SetSlice waiting for documentation from Neovim
-func (b *Buffer) SetSlice(start int, end int, includeStart bool, includeEnd bool, replacement [][]byte) error {
+func (b *Buffer) SetSlice(start int, end int, includeStart bool, includeEnd bool, replacement []string) error {
+	var replacement_b [][]byte
+	if replacement != nil {
+		replacement_b := make([][]byte, len(replacement))
+		for i := range replacement {
+			replacement_b[i] = []byte(replacement[i])
+		}
+	}
+	return b.SetSliceRaw(start, end, includeStart, includeEnd, replacement_b)
+}
+
+// SetSliceRaw waiting for documentation from Neovim
+func (b *Buffer) SetSliceRaw(start int, end int, includeStart bool, includeEnd bool, replacement [][]byte) error {
 
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(6)
@@ -789,7 +872,12 @@ func (b *Buffer) SetSlice(start int, end int, includeStart bool, includeEnd bool
 }
 
 // SetVar waiting for documentation from Neovim
-func (b *Buffer) SetVar(name []byte, value interface{}) (interface{}, error) {
+func (b *Buffer) SetVar(name string, value interface{}) (interface{}, error) {
+	return b.SetVarRaw([]byte(name), value)
+}
+
+// SetVarRaw waiting for documentation from Neovim
+func (b *Buffer) SetVarRaw(name []byte, value interface{}) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = b.client.enc.EncodeSliceLen(3)
@@ -840,7 +928,12 @@ func (b *Buffer) SetVar(name []byte, value interface{}) (interface{}, error) {
 }
 
 // GetVar waiting for documentation from Neovim
-func (t *Tabpage) GetVar(name []byte) (interface{}, error) {
+func (t *Tabpage) GetVar(name string) (interface{}, error) {
+	return t.GetVarRaw([]byte(name))
+}
+
+// GetVarRaw waiting for documentation from Neovim
+func (t *Tabpage) GetVarRaw(name []byte) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = t.client.enc.EncodeSliceLen(2)
@@ -1002,7 +1095,12 @@ func (t *Tabpage) IsValid() (bool, error) {
 }
 
 // SetVar waiting for documentation from Neovim
-func (t *Tabpage) SetVar(name []byte, value interface{}) (interface{}, error) {
+func (t *Tabpage) SetVar(name string, value interface{}) (interface{}, error) {
+	return t.SetVarRaw([]byte(name), value)
+}
+
+// SetVarRaw waiting for documentation from Neovim
+func (t *Tabpage) SetVarRaw(name []byte, value interface{}) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = t.client.enc.EncodeSliceLen(3)
@@ -1053,7 +1151,12 @@ func (t *Tabpage) SetVar(name []byte, value interface{}) (interface{}, error) {
 }
 
 // ChangeDirectory waiting for documentation from Neovim
-func (c *Client) ChangeDirectory(dir []byte) error {
+func (c *Client) ChangeDirectory(dir string) error {
+	return c.ChangeDirectoryRaw([]byte(dir))
+}
+
+// ChangeDirectoryRaw waiting for documentation from Neovim
+func (c *Client) ChangeDirectoryRaw(dir []byte) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -1092,7 +1195,12 @@ func (c *Client) ChangeDirectory(dir []byte) error {
 }
 
 // Command waiting for documentation from Neovim
-func (c *Client) Command(str []byte) error {
+func (c *Client) Command(str string) error {
+	return c.CommandRaw([]byte(str))
+}
+
+// CommandRaw waiting for documentation from Neovim
+func (c *Client) CommandRaw(str []byte) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -1164,7 +1272,12 @@ func (c *Client) DelCurrentLine() error {
 }
 
 // ErrWrite waiting for documentation from Neovim
-func (c *Client) ErrWrite(str []byte) error {
+func (c *Client) ErrWrite(str string) error {
+	return c.ErrWriteRaw([]byte(str))
+}
+
+// ErrWriteRaw waiting for documentation from Neovim
+func (c *Client) ErrWriteRaw(str []byte) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -1202,8 +1315,13 @@ func (c *Client) ErrWrite(str []byte) error {
 
 }
 
-// Eval waiting for documentation from Neovim
-func (c *Client) Eval(str []byte) (interface{}, error) {
+// EvalRaw waiting for documentation from Neovim
+func (c *Client) Eval(str string) (interface{}, error) {
+	return c.EvalRaw([]byte(str))
+}
+
+// EvalRaw waiting for documentation from Neovim
+func (c *Client) EvalRaw(str []byte) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -1243,7 +1361,12 @@ func (c *Client) Eval(str []byte) (interface{}, error) {
 }
 
 // Feedkeys waiting for documentation from Neovim
-func (c *Client) Feedkeys(keys []byte, mode []byte) error {
+func (c *Client) Feedkeys(keys string, mode string) error {
+	return c.FeedkeysRaw([]byte(keys), []byte(mode))
+}
+
+// FeedkeysRaw waiting for documentation from Neovim
+func (c *Client) FeedkeysRaw(keys []byte, mode []byte) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(2)
@@ -1356,7 +1479,13 @@ func (c *Client) GetCurrentBuffer() (Buffer, error) {
 }
 
 // GetCurrentLine waiting for documentation from Neovim
-func (c *Client) GetCurrentLine() ([]byte, error) {
+func (c *Client) GetCurrentLine() (string, error) {
+	res, err := c.GetCurrentLineRaw()
+	return string(res), err
+}
+
+// GetCurrentLineRaw waiting for documentation from Neovim
+func (c *Client) GetCurrentLineRaw() ([]byte, error) {
 	var retVal []byte
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(0)
@@ -1458,7 +1587,12 @@ func (c *Client) GetCurrentWindow() (Window, error) {
 }
 
 // GetOption waiting for documentation from Neovim
-func (c *Client) GetOption(name []byte) (interface{}, error) {
+func (c *Client) GetOption(name string) (interface{}, error) {
+	return c.GetOptionRaw([]byte(name))
+}
+
+// GetOptionRaw waiting for documentation from Neovim
+func (c *Client) GetOptionRaw(name []byte) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -1532,7 +1666,12 @@ func (c *Client) GetTabpages() ([]Tabpage, error) {
 }
 
 // GetVar waiting for documentation from Neovim
-func (c *Client) GetVar(name []byte) (interface{}, error) {
+func (c *Client) GetVar(name string) (interface{}, error) {
+	return c.GetVarRaw([]byte(name))
+}
+
+// GetVarRaw waiting for documentation from Neovim
+func (c *Client) GetVarRaw(name []byte) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -1572,7 +1711,12 @@ func (c *Client) GetVar(name []byte) (interface{}, error) {
 }
 
 // GetVvar waiting for documentation from Neovim
-func (c *Client) GetVvar(name []byte) (interface{}, error) {
+func (c *Client) GetVvar(name string) (interface{}, error) {
+	return c.GetVvarRaw([]byte(name))
+}
+
+// GetVvarRaw waiting for documentation from Neovim
+func (c *Client) GetVvarRaw(name []byte) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -1646,7 +1790,20 @@ func (c *Client) GetWindows() ([]Window, error) {
 }
 
 // ListRuntimePaths waiting for documentation from Neovim
-func (c *Client) ListRuntimePaths() ([][]byte, error) {
+func (c *Client) ListRuntimePaths() ([]string, error) {
+	var res_s []string
+	res, err := c.ListRuntimePathsRaw()
+	if res != nil {
+		res_s := make([]string, len(res))
+		for i := range res {
+			res_s[i] = string(res[i])
+		}
+	}
+	return res_s, err
+}
+
+// ListRuntimePathsRaw waiting for documentation from Neovim
+func (c *Client) ListRuntimePathsRaw() ([][]byte, error) {
 	var retVal [][]byte
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(0)
@@ -1680,7 +1837,12 @@ func (c *Client) ListRuntimePaths() ([][]byte, error) {
 }
 
 // OutWrite waiting for documentation from Neovim
-func (c *Client) OutWrite(str []byte) error {
+func (c *Client) OutWrite(str string) error {
+	return c.OutWriteRaw([]byte(str))
+}
+
+// OutWriteRaw waiting for documentation from Neovim
+func (c *Client) OutWriteRaw(str []byte) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -1719,7 +1881,12 @@ func (c *Client) OutWrite(str []byte) error {
 }
 
 // PushKeys waiting for documentation from Neovim
-func (c *Client) PushKeys(str []byte) error {
+func (c *Client) PushKeys(str string) error {
+	return c.PushKeysRaw([]byte(str))
+}
+
+// PushKeysRaw waiting for documentation from Neovim
+func (c *Client) PushKeysRaw(str []byte) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -1758,7 +1925,12 @@ func (c *Client) PushKeys(str []byte) error {
 }
 
 // registerProvider waiting for documentation from Neovim
-func (c *Client) registerProvider(feature []byte) error {
+func (c *Client) registerProvider(feature string) error {
+	return c.registerProviderRaw([]byte(feature))
+}
+
+// registerProviderRaw waiting for documentation from Neovim
+func (c *Client) registerProviderRaw(feature []byte) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -1797,7 +1969,13 @@ func (c *Client) registerProvider(feature []byte) error {
 }
 
 // ReplaceTermcodes waiting for documentation from Neovim
-func (c *Client) ReplaceTermcodes(str []byte, fromPart bool, doLt bool, special bool) ([]byte, error) {
+func (c *Client) ReplaceTermcodes(str string, fromPart bool, doLt bool, special bool) (string, error) {
+	res, err := c.ReplaceTermcodesRaw([]byte(str), fromPart, doLt, special)
+	return string(res), err
+}
+
+// ReplaceTermcodesRaw waiting for documentation from Neovim
+func (c *Client) ReplaceTermcodesRaw(str []byte, fromPart bool, doLt bool, special bool) ([]byte, error) {
 	var retVal []byte
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(4)
@@ -1855,7 +2033,12 @@ func (c *Client) ReplaceTermcodes(str []byte, fromPart bool, doLt bool, special 
 }
 
 // ReportError waiting for documentation from Neovim
-func (c *Client) ReportError(str []byte) error {
+func (c *Client) ReportError(str string) error {
+	return c.ReportErrorRaw([]byte(str))
+}
+
+// ReportErrorRaw waiting for documentation from Neovim
+func (c *Client) ReportErrorRaw(str []byte) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -1933,7 +2116,12 @@ func (c *Client) SetCurrentBuffer(buffer Buffer) error {
 }
 
 // SetCurrentLine waiting for documentation from Neovim
-func (c *Client) SetCurrentLine(line []byte) error {
+func (c *Client) SetCurrentLine(line string) error {
+	return c.SetCurrentLineRaw([]byte(line))
+}
+
+// SetCurrentLineRaw waiting for documentation from Neovim
+func (c *Client) SetCurrentLineRaw(line []byte) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -2050,7 +2238,12 @@ func (c *Client) SetCurrentWindow(window Window) error {
 }
 
 // SetOption waiting for documentation from Neovim
-func (c *Client) SetOption(name []byte, value interface{}) error {
+func (c *Client) SetOption(name string, value interface{}) error {
+	return c.SetOptionRaw([]byte(name), value)
+}
+
+// SetOptionRaw waiting for documentation from Neovim
+func (c *Client) SetOptionRaw(name []byte, value interface{}) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(2)
@@ -2095,7 +2288,12 @@ func (c *Client) SetOption(name []byte, value interface{}) error {
 }
 
 // SetVar waiting for documentation from Neovim
-func (c *Client) SetVar(name []byte, value interface{}) (interface{}, error) {
+func (c *Client) SetVar(name string, value interface{}) (interface{}, error) {
+	return c.SetVarRaw([]byte(name), value)
+}
+
+// SetVarRaw waiting for documentation from Neovim
+func (c *Client) SetVarRaw(name []byte, value interface{}) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(2)
@@ -2141,7 +2339,12 @@ func (c *Client) SetVar(name []byte, value interface{}) (interface{}, error) {
 }
 
 // Strwidth waiting for documentation from Neovim
-func (c *Client) Strwidth(str []byte) (int, error) {
+func (c *Client) Strwidth(str string) (int, error) {
+	return c.StrwidthRaw([]byte(str))
+}
+
+// StrwidthRaw waiting for documentation from Neovim
+func (c *Client) StrwidthRaw(str []byte) (int, error) {
 	var retVal int
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -2181,7 +2384,12 @@ func (c *Client) Strwidth(str []byte) (int, error) {
 }
 
 // subscribe waiting for documentation from Neovim
-func (c *Client) subscribe(event []byte) error {
+func (c *Client) subscribe(event string) error {
+	return c.subscribeRaw([]byte(event))
+}
+
+// subscribeRaw waiting for documentation from Neovim
+func (c *Client) subscribeRaw(event []byte) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -2220,7 +2428,12 @@ func (c *Client) subscribe(event []byte) error {
 }
 
 // unsubscribe waiting for documentation from Neovim
-func (c *Client) unsubscribe(event []byte) error {
+func (c *Client) unsubscribe(event string) error {
+	return c.unsubscribeRaw([]byte(event))
+}
+
+// unsubscribeRaw waiting for documentation from Neovim
+func (c *Client) unsubscribeRaw(event []byte) error {
 
 	enc := func() (_err error) {
 		_err = c.enc.EncodeSliceLen(1)
@@ -2376,7 +2589,12 @@ func (w *Window) GetHeight() (int, error) {
 }
 
 // GetOption waiting for documentation from Neovim
-func (w *Window) GetOption(name []byte) (interface{}, error) {
+func (w *Window) GetOption(name string) (interface{}, error) {
+	return w.GetOptionRaw([]byte(name))
+}
+
+// GetOptionRaw waiting for documentation from Neovim
+func (w *Window) GetOptionRaw(name []byte) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = w.client.enc.EncodeSliceLen(2)
@@ -2499,7 +2717,12 @@ func (w *Window) GetTabpage() (Tabpage, error) {
 }
 
 // GetVar waiting for documentation from Neovim
-func (w *Window) GetVar(name []byte) (interface{}, error) {
+func (w *Window) GetVar(name string) (interface{}, error) {
+	return w.GetVarRaw([]byte(name))
+}
+
+// GetVarRaw waiting for documentation from Neovim
+func (w *Window) GetVarRaw(name []byte) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = w.client.enc.EncodeSliceLen(2)
@@ -2710,7 +2933,12 @@ func (w *Window) SetHeight(height int) error {
 }
 
 // SetOption waiting for documentation from Neovim
-func (w *Window) SetOption(name []byte, value interface{}) error {
+func (w *Window) SetOption(name string, value interface{}) error {
+	return w.SetOptionRaw([]byte(name), value)
+}
+
+// SetOptionRaw waiting for documentation from Neovim
+func (w *Window) SetOptionRaw(name []byte, value interface{}) error {
 
 	enc := func() (_err error) {
 		_err = w.client.enc.EncodeSliceLen(3)
@@ -2760,7 +2988,12 @@ func (w *Window) SetOption(name []byte, value interface{}) error {
 }
 
 // SetVar waiting for documentation from Neovim
-func (w *Window) SetVar(name []byte, value interface{}) (interface{}, error) {
+func (w *Window) SetVar(name string, value interface{}) (interface{}, error) {
+	return w.SetVarRaw([]byte(name), value)
+}
+
+// SetVarRaw waiting for documentation from Neovim
+func (w *Window) SetVarRaw(name []byte, value interface{}) (interface{}, error) {
 	var retVal interface{}
 	enc := func() (_err error) {
 		_err = w.client.enc.EncodeSliceLen(3)
